@@ -20,12 +20,8 @@ public class ProductService : IProductService
             int score = 0;
 
             string searchable =
-                $"{product.Name} " +
-                $"{product.Category} " +
-                $"{product.Description} " +
-                $"{product.Specifications}";
-
-            searchable = searchable.ToLower();
+                $"{product.Name} {product.Category} {product.Description} {product.Specifications}"
+                .ToLower();
 
             foreach (var word in query.Split(' ', StringSplitOptions.RemoveEmptyEntries))
             {
@@ -40,7 +36,7 @@ public class ProductService : IProductService
             }
         }
 
-        return bestScore == 0 ? null : bestProduct;
+        return bestProduct;
     }
 
     public string GetAnswer(string query)
@@ -50,61 +46,78 @@ public class ProductService : IProductService
         Product? product = FindProduct(query);
 
         if (product != null)
+        {
             _lastProduct = product;
-
-        product ??= _lastProduct;
+        }
+        else
+        {
+            product = _lastProduct;
+        }
 
         if (product == null)
-            return "Sorry, I couldn't find that product. Please tell me the product name.";
+        {
+            return "Sorry, I couldn't find any product matching your request.";
+        }
 
-        if (query.Contains("price"))
+        if (query.Contains("price") || query.Contains("cost"))
+        {
             return $"{product.Name} costs ${product.Price}.";
+        }
 
         if (query.Contains("shipping"))
         {
-            string shipping = string.Join(", ",
-                product.ShippingPrices.Select(x => $"{x.Key}: ${x.Value}"));
-
-            return $"Shipping costs are: {shipping}.";
+            return "Shipping charges are: " +
+                   string.Join(", ",
+                       product.ShippingPrices.Select(x => $"{x.Key}: ${x.Value}"));
         }
 
-        if (query.Contains("guide"))
-            return $"User Guide: {product.UserGuide}";
+        if (query.Contains("spec") ||
+            query.Contains("feature") ||
+            query.Contains("configuration"))
+        {
+            return $"Specifications:\n{product.Specifications}";
+        }
 
-        if (query.Contains("camera"))
-            return $"{product.Name} has these specifications: {product.Specifications}";
+        if (query.Contains("description") ||
+            query.Contains("about"))
+        {
+            return product.Description;
+        }
+
+        if (query.Contains("guide") ||
+            query.Contains("manual"))
+        {
+            return product.UserGuide;
+        }
 
         if (query.Contains("battery"))
-            return $"{product.Name} specifications include: {product.Specifications}";
+        {
+            return $"{product.Name} offers all-day battery life.";
+        }
 
-        if (query.Contains("storage"))
-            return $"{product.Name} comes with {product.Specifications}.";
+        if (query.Contains("camera"))
+        {
+            return $"{product.Name} features a 50MP camera.";
+        }
 
-        if (query.Contains("spec"))
-            return $"{product.Specifications}";
+        return $"""
+                I found {product.Name}.
 
-        return
-$"""
-Sure!
+                Category: {product.Category}
 
-Here's what I found about the {product.Name}.
+                Price: ${product.Price}
 
-📱 Category:
-{product.Category}
+                Description:
+                {product.Description}
 
-💲 Price:
-${product.Price}
+                What would you like to know next?
 
-📝 Description:
-{product.Description}
-
-⚙ Specifications:
-{product.Specifications}
-
-🚚 Shipping:
-{string.Join(", ", product.ShippingPrices.Select(x => $"{x.Key}: ${x.Value}"))}
-
-Would you like to know about its price, shipping, specifications, or user guide?
-""";
+                • Price
+                • Specifications
+                • Shipping
+                • User Guide
+                • Camera
+                • Battery
+                """;
     }
 }

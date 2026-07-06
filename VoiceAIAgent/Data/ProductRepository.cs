@@ -72,7 +72,7 @@ public static class ProductRepository
             Name = "Galaxy S25",
             Category = "Mobile",
             Price = 899,
-            Description = "Samsung flagship smartphone powered by Snapdragon 8 Elite.",
+            Description = "Samsung flagship smartphone powered by Snapdragon 8 Elite with excellent battery life and a 50MP camera.",
             Specifications = "12GB RAM, 256GB Storage, 6.2-inch AMOLED Display, 50MP Camera",
             UserGuide = "Charge fully before first use and install the latest software updates.",
             ShippingPrices = new(){{"USA",15},{"India",8},{"Europe",12}}
