@@ -1,0 +1,272 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Voice AI Assistant</title>
+
+    <style>
+
+        body {
+            background: #111;
+            color: white;
+            font-family: Arial;
+            margin: 0;
+        }
+
+        .container {
+            width: 900px;
+            margin: 30px auto;
+        }
+
+        h1 {
+            text-align: center;
+        }
+        h2 {
+            text-align: center;
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        #messages {
+            margin-top: 30px;
+            background: #1b1b1b;
+            border-radius: 10px;
+            padding: 20px;
+            height: 500px;
+            overflow: auto;
+        }
+
+        .user {
+            text-align: right;
+            margin: 15px;
+        }
+
+            .user div {
+                display: inline-block;
+                background: #2d72ff;
+                padding: 15px;
+                border-radius: 15px;
+                max-width: 70%;
+            }
+
+        .ai {
+            text-align: left;
+            margin: 15px;
+        }
+
+            .ai div {
+                display: inline-block;
+                background: #333;
+                padding: 15px;
+                border-radius: 15px;
+                max-width: 70%;
+            }
+
+        #status {
+            margin-top: 15px;
+            color: #77ff77;
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>🎤 Voice AI Assistant</h1>
+        <h2>try to ask "tell me about SAMSUNG S25" or "iphone"</h2>
+
+        <center>
+            <button onclick="startRecognition()">
+                Start Talking
+            </button>
+
+            <div id="status"
+                 style="
+                        margin-top:20px;
+                        padding:12px;
+                        width:260px;
+                        background:#222;
+                        border-radius:10px;
+                        text-align:center;
+                        color:#66ff99;
+                        font-weight:bold;
+                     ">
+                ✅ Ready
+            </div>
+        </center>
+
+        <div id="messages"></div>
+
+    </div>
+
+    <script>
+
+        const recognition =
+            new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+
+        recognition.lang = "en-US";
+        recognition.continuous = false;
+        recognition.interimResults = true;
+
+        let finalTranscript = "";
+
+        recognition.onstart = () => {
+            status.innerHTML = "🎙 Listening...";
+            finalTranscript = "";
+        };
+
+        recognition.onresult = (event) => {
+
+            let transcript = "";
+
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                transcript += event.results[i][0].transcript;
+            }
+
+            status.innerHTML = transcript;
+
+            if (event.results[event.results.length - 1].isFinal) {
+
+                finalTranscript = transcript.trim();
+                status.innerHTML = "📝 Speech Recognized...";
+
+                addUser(finalTranscript);
+
+                send(finalTranscript);
+            }
+        };
+
+        recognition.onend = () => {
+            status.innerHTML = "";
+        };
+
+        let listening = false;
+
+        function startRecognition() {
+            document.querySelector("button").innerHTML = "🎙 Listening...";
+            document.querySelector("button").disabled = true;
+
+            if (listening)
+                return;
+
+            recognition.start();
+        }
+        recognition.onstart = () => {
+            status.innerHTML = "🎙 Listening...";
+            finalTranscript = "";
+        };
+
+        recognition.onend = () => {
+
+            document.querySelector("button").innerHTML = "Start Talking";
+            document.querySelector("button").disabled = false;
+            listening = false;
+
+            status.innerHTML = "✅ Ready";
+        };
+
+        function addUser(text) {
+
+            messages.innerHTML += `
+
+<div class="user">
+<div>${text}</div>
+</div>
+
+`;
+
+            messages.scrollTop = messages.scrollHeight;
+
+        }
+
+        async function addAI(text) {
+
+            const id = "ai_" + Date.now();
+
+            messages.innerHTML += `
+                <div class="ai">
+                    <div id="${id}"></div>
+                </div>
+            `;
+
+            const element = document.getElementById(id);
+
+            for (let i = 0; i < text.length; i++) {
+
+                element.innerHTML += text[i];
+
+                if (text[i] === '.')
+                    await new Promise(r => setTimeout(r, 250));
+
+                messages.scrollTop = messages.scrollHeight;
+
+                await new Promise(r => setTimeout(r, 8));
+            }
+
+        }
+
+        async function speak(text) {
+
+            speechSynthesis.cancel();
+
+            const sentences = text.match(/[^.!?]+[.!?]?/g) || [text];
+
+            for (const sentence of sentences) {
+
+                await new Promise(resolve => {
+
+                    const utterance = new SpeechSynthesisUtterance(sentence.trim());
+
+                    utterance.rate = 1;
+                    utterance.pitch = 1;
+                    utterance.volume = 1;
+
+                    utterance.onend = resolve;
+
+                    speechSynthesis.speak(utterance);
+
+                });
+
+            }
+
+            status.innerHTML = "✅ Ready";
+        }
+
+        async function send(message) {
+            status.innerHTML = "🧠 Searching Product Database...";
+            let response = await fetch(window.location.origin + "/api/chat/ask", {
+
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+
+                    message
+
+                })
+
+            });
+
+            let data = await response.json();
+
+            status.innerHTML = "🧠 Thinking...";
+            status.innerHTML = "🔊 Speaking...";
+            speak(data.answer);
+            addAI(data.answer);
+
+        }
+
+    </script>
+
+</body>
+
+</html>

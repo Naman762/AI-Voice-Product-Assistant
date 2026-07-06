@@ -1,0 +1,8 @@
+@host=https://localhost:7020
+
+POST {{host}}/api/chat/ask
+Content-Type: application/json
+
+{
+  "message":"Tell me about Galaxy S25"
+}
