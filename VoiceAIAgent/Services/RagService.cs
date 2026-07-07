@@ -8,6 +8,11 @@ public class RagService
     public List<KnowledgeChunk> Retrieve(string query)
     {
         query = query.ToLower();
+        query = query
+        .Replace("phones", "mobile")
+        .Replace("phone", "mobile")
+        .Replace("mobiles", "mobile")
+        .Replace("cellphone", "mobile");
 
         List<KnowledgeChunk> chunks = new();
 
@@ -30,25 +35,45 @@ User Guide:
 """;
 
             int score = 0;
+            var stopWords = new HashSet<string>
+{
+    "tell","me","about","show","give","what","is","the",
+    "a","an","please","i","want","to","know","can","you"
+};
 
             foreach (var word in query.Split(' ', StringSplitOptions.RemoveEmptyEntries))
             {
-                string w = word.ToLower();
+                var w = word.ToLower();
+
+                if (stopWords.Contains(w))
+                    continue;
+
+                if (w == "phone" || w == "phones" || w == "mobile" || w == "mobiles")
+                    w = "mobile";
+
+                if (w == "laptop" || w == "laptops")
+                    w = "laptop";
+
+                if (w == "headphone" || w == "headphones")
+                    w = "headphones";
+
+                if (w == "watch" || w == "watches")
+                    w = "smart watch";
 
                 if (product.Name.ToLower().Contains(w))
-                    score += 10;
+                    score += 20;
 
                 if (product.Category.ToLower().Contains(w))
-                    score += 6;
+                    score += 15;
 
                 if (product.Description.ToLower().Contains(w))
-                    score += 3;
+                    score += 10;
 
                 if (product.Specifications.ToLower().Contains(w))
-                    score += 2;
+                    score += 5;
 
                 if (product.UserGuide.ToLower().Contains(w))
-                    score += 1;
+                    score += 2;
             }
 
             chunks.Add(new KnowledgeChunk

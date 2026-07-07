@@ -79,11 +79,20 @@
     <div class="container">
 
         <h1>🎤 Voice AI Assistant</h1>
-        <h2>try to ask "tell me about SAMSUNG S25" or "iphone"</h2>
+        <h2>
+            🎙 Try asking:
+
+            • Tell me about Samsung Galaxy S25
+            • What's the battery life?
+            • Tell me about the camera
+        </h2>
 
         <center>
             <button onclick="startRecognition()">
                 Start Talking
+            </button>
+            <button onclick="stopRecognition()">
+                Stop
             </button>
 
             <div id="status"
@@ -107,6 +116,7 @@
 
     <script>
 
+
         const recognition =
             new (window.SpeechRecognition || window.webkitSpeechRecognition)();
 
@@ -114,7 +124,15 @@
         recognition.continuous = false;
         recognition.interimResults = true;
 
+        speechSynthesis.getVoices();
+
+        speechSynthesis.onvoiceschanged = () => {
+            speechSynthesis.getVoices();
+        };
+
         let finalTranscript = "";
+        let currentReader = null;
+        let currentSpeech = null;
 
         recognition.onstart = () => {
             status.innerHTML = "🎙 Listening...";
@@ -149,12 +167,22 @@
         let listening = false;
 
         function startRecognition() {
+
+            speechSynthesis.cancel();
+
+            if (currentReader) {
+                currentReader.cancel();
+                currentReader = null;
+            }
+
             document.querySelector("button").innerHTML = "🎙 Listening...";
             document.querySelector("button").disabled = true;
 
             if (listening)
                 return;
 
+
+            listening = true;
             recognition.start();
         }
         recognition.onstart = () => {
@@ -169,20 +197,40 @@
             listening = false;
 
             status.innerHTML = "✅ Ready";
+            document.querySelector("button").innerHTML = "Start Talking";
+            document.querySelector("button").disabled = false;
+            listening = false;
         };
 
         function addUser(text) {
 
             messages.innerHTML += `
 
-<div class="user">
-<div>${text}</div>
-</div>
+            <div class="user">
+            <div>${text}</div>
+            </div>
 
-`;
+            `;
 
             messages.scrollTop = messages.scrollHeight;
 
+        }
+        function stopRecognition() {
+
+            speechSynthesis.cancel();
+
+            if (currentReader) {
+                currentReader.cancel();
+                currentReader = null;
+            }
+
+            listening = false;
+            recognition.stop();
+
+            document.querySelector("button").innerHTML = "Start Talking";
+            document.querySelector("button").disabled = false;
+
+            status.innerHTML = "✅ Ready";
         }
 
         async function addAI(text) {
@@ -223,8 +271,16 @@
 
                     const utterance = new SpeechSynthesisUtterance(sentence.trim());
 
-                    utterance.rate = 1;
-                    utterance.pitch = 1;
+                    const voices = speechSynthesis.getVoices();
+
+                    utterance.voice =
+                        voices.find(v => v.name === "Google UK Female") ||
+                        voices.find(v => v.name === "Google US English") ||
+                        voices.find(v => v.lang === "en-US");
+
+                    utterance.lang = "en-GB";
+                    utterance.rate = 1.0;
+                    utterance.pitch = 1.0;
                     utterance.volume = 1;
 
                     utterance.onend = resolve;
@@ -238,31 +294,70 @@
             status.innerHTML = "✅ Ready";
         }
 
+        
         async function send(message) {
-            status.innerHTML = "🧠 Searching Product Database...";
-            let response = await fetch(window.location.origin + "/api/chat/ask", {
-
-                method: "POST",
-
-                headers: {
-                    "Content-Type": "application/json"
-                },
-
-                body: JSON.stringify({
-
-                    message
-
-                })
-
-            });
-
-            let data = await response.json();
 
             status.innerHTML = "🧠 Thinking...";
-            status.innerHTML = "🔊 Speaking...";
-            speak(data.answer);
-            addAI(data.answer);
 
+            speechSynthesis.cancel();
+
+            const id = "ai_" + Date.now();
+
+             messages.innerHTML += `
+                <div class="ai">
+                    <div id="${id}"></div>
+                </div>
+            `;
+
+            const element = document.getElementById(id);
+
+            const response = await fetch(
+                "/api/chat/stream?message=" + encodeURIComponent(message)
+                 );
+
+            currentReader = response.body.getReader();
+
+            const reader = currentReader;
+
+            const decoder = new TextDecoder();
+
+            let fullText = "";
+
+            while (true) {
+
+                const { done, value } = await reader.read();
+
+                if (done)
+                    break;
+
+                const chunk = decoder.decode(value);
+
+                const lines = chunk.split("\n");
+
+                for (const line of lines) {
+
+                    if (!line.startsWith("data:"))
+                        continue;
+
+                    const text = line.replace("data:", "").trim();
+
+                    if (text === "[DONE]")
+                        continue;
+
+                    fullText += text;
+
+                    element.innerHTML = fullText;
+                    status.innerHTML = "💬 Responding...";
+
+                    messages.scrollTop = messages.scrollHeight;
+                }
+            }
+
+            status.innerHTML = "🔊 Speaking...";
+            status.innerHTML = "✅ Ready";
+
+            speak(fullText);
+            currentReader = null;
         }
 
     </script>
